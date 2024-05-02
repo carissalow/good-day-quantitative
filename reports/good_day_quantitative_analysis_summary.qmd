@@ -1,0 +1,306 @@
+---
+title: "Good Day quantitative analyses"
+date: today
+author: 
+    name: "Mobile Sensing + Health Institute (MoSHI)"
+    affiliation: "University of Pittsburgh"
+    #url: "https://moshi.pitt.edu"
+execute:
+    echo: false
+format:
+    html:
+        toc: true
+        toc-location: left
+        number-sections: true
+        theme: cosmo
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+from great_tables import GT
+from quarto_utils import *
+```
+
+```{python}
+config = read_config()
+
+promis_score_type = config["DATA_CLEANING_PARAMETERS"]["PROMIS"]["SCORE_TYPE"]
+data_cleaning_params = config["DATA_CLEANING_PARAMETERS"]["DIARY"]
+analysis_params = config["ANALYSIS_PARAMETERS"]
+
+data_cleaning_report = create_readable_data_cleaning_report()
+```
+
+```{python}
+within_person_descriptives = pd.read_csv("../output/descriptives/within_person_descriptive_statistics.csv")
+between_person_descriptives = pd.read_csv("../output/descriptives/between_person_descriptive_statistics.csv")
+icc = pd.read_csv("../output/descriptives/intraclass_correlation_coefficient.csv")
+ttests = pd.read_csv("../output/results/between_person_independent_samples_ttests.csv")
+between_person_correlations = pd.read_csv("../output/results/between_person_pearson_correlations.csv")
+mixed_models = pd.read_csv("../output/results/univariable_linear_mixed_models.csv")
+within_person_correlations = pd.read_csv("../output/results/within_person_point_biserial_correlations.csv")
+```
+
+```{python}
+# raw diary data
+raw_n_response_total = data_cleaning_report["start_rows"]
+raw_n_pids = len(data_cleaning_report["start_pids"])
+invalid_pids = interpret_readable_data_cleaning_report(data_cleaning_report, "invalid_pids")
+missing_pids = interpret_readable_data_cleaning_report(data_cleaning_report, "missing_pids")
+
+# interim diary data cleaning steps
+readable_datetime_threshold = interpret_minutes_after_midnight(data_cleaning_params)
+drop_responses_date_threshold = intepret_drop_responses(data_cleaning_params)
+
+# cleaned diary data
+clean_n_response_total = within_person_descriptives["how_would_you_describe_today_count"].sum()
+clean_n_response_per_pid_stats = between_person_descriptives.query("variable == 'n_responses'").round(2).iloc[0].to_dict()
+dropped_pids = interpret_readable_data_cleaning_report(data_cleaning_report, "dropped_pids")
+
+# between-person correlations
+between_person_correlation_method = analysis_params["BETWEEN_PERSON_CORRELATIONS"]["METHOD"].capitalize()
+between_person_correlation_multiple_comparisons = interpret_padjust_method(config["ANALYSIS_PARAMETERS"]["BETWEEN_PERSON_CORRELATIONS"]["MULTIPLE_COMPARISONS"])
+
+# mixed models 
+mixed_model_activity_threshold_lower = format_proportion_as_percent(pd.Series(analysis_params["UNIVARIABLE_MIXED_MODELS"]["FEATURE_COLUMNS"]["ENDORSEMENT_THRESHOLD_MIN"]))[0]
+mixed_model_activity_threshold_upper = format_proportion_as_percent(pd.Series(analysis_params["UNIVARIABLE_MIXED_MODELS"]["FEATURE_COLUMNS"]["ENDORSEMENT_THRESHOLD_MAX"]))[0]
+mixed_model_multiple_comparisons = interpret_padjust_method(analysis_params["UNIVARIABLE_MIXED_MODELS"]["MULTIPLE_COMPARISONS"])
+
+# within-person correlations
+within_person_correlation_multiple_comparisons = interpret_padjust_method(analysis_params["WITHIN_PERSON_CORRELATIONS"]["MULTIPLE_COMPARISONS"])
+within_person_correlation_n_activities = len(within_person_correlations.activity.unique())
+within_person_correlaton_n_pids = len(within_person_correlations.pid.unique())
+```
+
+<br>
+
+## Data preparation 
+
+### Baseline demographics
+
+Participants' self-reported demographic information including age (in years, computed from the participant's birth date and the questionnaire completion date), gender (female, male), and race (White/Caucasian, Black/African American) was collected via a baseline questionnaire administered via REDCap.  
+
+<br>
+
+### Baseline quality of life 
+
+To assess quality of life, participants also completed the PROMIS Profile 29+2 v2.1 ([Cella et al., 2019](https://doi.org/10.1016/j.jval.2019.02.004)) as part of the baseline questionnaire. T-scores (centered at 50) were obtained from participants' item-level responses via HealthMeasures Scoring Service using the default calibration sample. T-scores were obtained for the following domains: ability to participate in social roles/activities, anxiety/fear, cognitive function, depression/sadness, fatigue, pain interference, physical function, and sleep disturbance.    
+
+<br>
+
+### Daily surveys
+
+Daily goodness ratings (indicated using a 5-point Likert scale in response to the question, "How would you describe today?") and endorsements for up to 31 activities were obtained using an in-house questionnaire administered electronically via Qualtrics. There were n=`{python} raw_n_response_total` diary survey responses from n=`{python} raw_n_pids` unique participant IDs`{python} invalid_pids` in the data exported from Qualtrics on February 23, 2024. `{python} missing_pids`
+
+We performed the following initial steps to clean the daily diary data:  
+
+1. Drop responses that were less than `{python} data_cleaning_params["PROGRESS_THRESHOLD"]`% complete (`{python} data_cleaning_report["step_dropped_row_stats"]["drop_incomplete"]`)  
+2. Drop responses with missing or invalid participant IDs (`{python} data_cleaning_report["step_dropped_row_stats"]["drop_invalid_pid"]`)  
+3. Assign surveys to a date using a time threshold of `{python} data_cleaning_params["DATE_TIME_THRESHOLD"]` minutes after midnight; i.e., any survey completed between `{python} readable_datetime_threshold` is treated as corresponding to that date  
+4. Drop responses recorded `{python} drop_responses_date_threshold` (`{python} data_cleaning_report["step_dropped_row_stats"]["drop_date"]`) 
+5. Drop duplicate responses recorded by the same participant on a given date by retaining only the latest completed survey (i.e., the survey associated with the max timestamp) with a non-missing value for the day's overall goodness rating (`{python} data_cleaning_report["step_dropped_row_stats"]["drop_duplicates"]`) 
+6. Fill missing values for binary activity endorsements with 0, on the assumption that a lack of endorsement reflects that the participant did not engage in the activity  
+
+This left us with a total of n=`{python} clean_n_response_total` diary survey responses from n=`{python} int(clean_n_response_per_pid_stats["count"])` participants (mean (SD) responses per participant, `{python} clean_n_response_per_pid_stats["mean"]` (`{python} clean_n_response_per_pid_stats["std"]`); range, `{python} int(clean_n_response_per_pid_stats["min"])`-`{python} int(clean_n_response_per_pid_stats["max"])`) eligible for analysis. `{python} dropped_pids`     
+
+<br>
+
+All analyses were performed in Python v3.12.2.  
+
+<br>
+
+## Descriptive statistics 
+
+### Baseline measures
+
+```{python}
+(
+    GT(format_demographics(between_person_descriptives, promis_score_type))
+    .fmt_markdown(
+        columns=["Characteristic"]
+    )
+    .cols_width(
+        cases = {"Characteristic":"70%"}
+    )
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_width="100%"
+    )
+    .tab_source_note(
+        source_note="n (%); Mean (SD) [Range]"
+    )
+)
+```
+
+<br>
+
+### Goodness ratings 
+
+#### Across participants 
+
+```{python}
+(
+    GT(format_between_person_goodness(between_person_descriptives))
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_width="100%"
+    )
+)
+```
+
+<br>
+
+#### Within participants 
+
+```{python}
+(
+    GT(format_within_person_goodness(within_person_descriptives))
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_width="100%",
+         container_height="400px"
+    )
+)
+```
+
+<br>
+
+#### Intraclass correlation coefficient
+
+The intraclass correlation coefficient (ICC) for goodness was computed using the `statsmodels` package (v0.14.1). To compute ICC, we fit an intercept-only linear mixed effects model with daily goodness rating as the outcome and random intercepts for participant. We extracted the estimates of the random effects (i.e., between-group, where the groups are the participants) and residual (i.e., within-group) variance. ICC was then calculated as the ratio of the between-group variance and the total variance (the sum of the between-group and within-group variances).  
+
+```{python}
+(
+    GT(format_icc_results(icc))
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_width="100%"
+    )
+)
+```
+
+The ICC for daily goodness rating was `{python} icc["icc"][0].round(4)`; i.e., `{python} (icc["icc"][0]*100).round(2)`% of the total variance in goodness rating was accounted for by participant grouping. If ICC is relatively small, this suggests that goodness rating has more "state" variability, or relatively small differences between persons and relatively large differences within persons. If ICC is relatively large, this suggests that goodness rating has more "trait" variability, or relatively large differences between persons and relatively small differences within persons.
+
+<br>
+
+### Activities 
+
+#### Across participants
+
+```{python}
+(
+    GT(format_between_person_activities(between_person_descriptives))
+    .data_color(
+        palette="Blues",
+        columns=["%"]
+    )
+    .tab_spanner(
+        label=f"N={between_person_descriptives[between_person_descriptives["variable"].str.contains("what_did_you_spend_time_doing_today_")]["count"].unique()[0]}",
+        columns=["n", "%"]
+    )
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_font_size="small",
+        table_width="90%",
+        container_height="400px"
+    )
+)
+```
+
+<br>
+
+#### Within participants
+
+```{python}
+create_heatmap(
+    data=format_within_person_activities(within_person_descriptives),
+    x="id",
+    y="variable",
+    fill="value",
+    fill_cmap="Blues",
+    fill_breaks=(0, 0.25, 0.5, 0.75, 1),
+    x_label="Participant ID",
+    y_label="Activity",
+    fill_label="Proportion\nof surveys",
+    title = "",
+    fig_size=(7.5, 6)
+)
+```
+
+<br> 
+
+## Associations with goodness ratings
+
+### Participant-level goodness and baseline measures
+
+To characterize the association between participants' mean goodness rating and age in years at enrollment and PROMIS t-scores for each of the available domains at baseline, we calculated a series of `{python} between_person_correlation_method` correlations. To characterize the association between participants' mean goodness rating and gender (female, male) and race (Black/African American, White/Caucasian), we performed a series of independent samples t-tests. `{python} between_person_correlation_multiple_comparisons` (q-value). Correlations, t-tests, and p-value adjustment were performed using the `pingouin` package (v0.5.4). 
+
+```{python}
+(
+    GT(format_between_person_association_results(between_person_correlations, ttests, promis_score_type))
+    .fmt_markdown(
+        columns=["Characteristic", "Test statistic"]
+    )
+    .cols_width(
+        cases = {"Characteristic":"40%"}
+    )
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_font_size="small",
+        table_width="100%"
+    )
+)
+```
+
+<br>
+
+### Day-level goodness and activities 
+
+To characterize *overall* associations between day-level goodness and activities, we fit a series of univariable linear mixed effects models with daily goodness rating as the dependent variable, each binary activity separately as the single independent variable, and random intercepts for participant to account for correlations between observations from the same individual. To ensure sufficient variability for analysis, we analyzed only those activities that were endorsed on between `{python} mixed_model_activity_threshold_lower`% and `{python} mixed_model_activity_threshold_upper`% of all surveys. `{python} mixed_model_multiple_comparisons`. Mixed model analysis was performed with the `statsmodels` package (v0.14.1) and p-value adjustment was performed using the `pingouin` package (v0.5.4).   
+
+Results are displayed in the table below, with each row corresponding to a separate model (intercept terms have been excluded).  
+
+```{python}
+(
+    GT(format_mixed_model_results(mixed_models, between_person_descriptives))
+    .tab_spanner(
+        label="Assciation with daily goodness rating",
+        columns=["Beta", "SE", "95% CI", "p-value", "q-value"]
+    )
+    .tab_options(
+        column_labels_font_weight="bold",
+        table_font_size="small",
+        table_width="100%"
+    )
+    .tab_source_note(
+        source_note="SE: standard error; CI: confidence interval"
+    )
+)
+```
+
+<br>
+
+### Within-person, day-level goodness and activities
+
+In an exploratory post-hoc analysis to characterize *within-person* associations between day-level goodness and activities, we calculated a series of point-biserial correlations for each activity, with activity endorsement as the binary variable and daily goodness rating as the continuous variable, separately for each participant. We analyzed only participants who had at least n=2 observations and non-zero variance in goodness, and within each participant, only those activities that had non-zero variance in endorsement. `{python} within_person_correlation_multiple_comparisons`. Point-biserial correlation coefficients were calculated using the `scipy` package (v1.11.3) and p-value adjustment was performed using the `pingouin` package (v0.5.4). 
+
+The figure below displays the results of the analysis as a heat map. Activities (n=`{python} within_person_correlation_n_activities`) are displayed along the y-axis and participants (n=`{python} within_person_correlaton_n_pids`) are displayed along the x-axis. The association between daily goodness rating and a given activity for a given participant (point-biserial correlation coefficient) is displayed along the color axis, with darker reds indicating stronger negative and darker blues indicating stronger positive correlations; grey squares indicate that there was zero variance in the endorsement of a given activity for a given participant, precluding calculation of the respective correlation coefficient.  
+
+```{python}
+create_heatmap(
+    data=format_within_person_correlation_results(within_person_correlations),
+    x="pid",
+    y="activity",
+    fill="r",
+    fill_cmap="RdBu",
+    fill_breaks=(-0.99, -0.5, 0, 0.5, 0.99),
+    x_label="Participant ID",
+    y_label="Activity",
+    fill_label="Correlation\ncoefficient",
+    title="",
+    fig_size=(7.5, 6)
+)
+```
+
+<br>

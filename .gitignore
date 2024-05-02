@@ -1,0 +1,34 @@
+# data 
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep 
+
+# output
+logs/*
+!logs/.gitkeep
+output/descriptives/*
+!output/descriptives/.gitkeep
+output/figures/*
+!output/figures/.gitkeep
+output/results/*
+!output/results/.gitkeep
+output/tables/*
+!output/tables/.gitkeep
+
+# quarto files
+reports/_site/
+reports/.quarto/
+
+# python files
+__pycache__/
+pip-log.txt
+pip-delete-this-directory.txt
+.idea
+.vscode/
+.spyproject/
+.ipynb_checkpoints/
+*.ipynb
+
+# mac storage files
+.DS_Store

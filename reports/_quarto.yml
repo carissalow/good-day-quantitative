@@ -1,0 +1,23 @@
+project:
+  type: website
+  render:
+    - good_day_quantitative_analysis_summary.qmd
+
+website:
+  title: "Good Day quantitative analyses"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-title: Table of Contents
+    toc-location: left
+    other-links:
+      - text: MoSHI website
+        icon: house-heart-fill
+        href: https://moshi.pitt.edu
+      - text: Project GitHub
+        icon: github
+        href: https://github.com/carissalow/good-day-quantitative
+        

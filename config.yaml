@@ -1,0 +1,44 @@
+PARTICIPANTS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+
+RAW_DATA_FILES:
+  DIARY_DATA: "Good Day Diary Study_Qualtrics_February 23, 2024.csv"
+  STUDY_DATE_DATA: "Good Day Start End Dates.csv"
+  DEMOGRAPHICS_DATA: "GoodDayStudyData-Demographic_DATA_LABELS_2024-03-20_1625.csv"
+  PROMIS_DATA: "GoodDayStudyData-BaselineScored_DATA_LABELS_2024-03-18_1111.csv"
+
+DATA_CLEANING_PARAMETERS:
+  DIARY:
+    PROGRESS_THRESHOLD: 50 # percent; integer between 0 and 100, inclusive
+    DATE_TIME_THRESHOLD: 0 # minutes after midnight; integer between 0 and 1439, inclusive
+    DROP_RESPONSES:
+      BEFORE_STUDY_START_DATE: True # one of: True, False
+      AFTER_STUDY_END_DATE: True # one of: True, False
+    DEDUPLICATE_REPONSES:
+      METHOD: "max" # one of: min, max, none
+      PRIORITIZE_NONMISSING: True # one of: True, False
+  PROMIS:
+    SCORE_TYPE: "t_score" # one of: raw_score, t_score, standard_error, theta
+
+ANALYSIS_PARAMETERS:
+  BETWEEN_PERSON_CORRELATIONS:
+    TARGET_COLUMN: "how_would_you_describe_today_mean"
+    METHOD: "pearson" # one of: pearson, spearman, kendall, bicor, percbend, shepherd, skipped; see https://pingouin-stats.org/build/html/generated/pingouin.corr.html#pingouin.corr
+    MULTIPLE_COMPARISONS:
+      ADJUST_P_VALUES: True 
+      METHOD: "fdr_bh" # one of: bonf, sidak, holm, fdr_bh, fdr_by, none; see https://pingouin-stats.org/build/html/generated/pingouin.multicomp.html#pingouin.multicomp
+
+  UNIVARIABLE_MIXED_MODELS:
+    TARGET_COLUMN: "how_would_you_describe_today" 
+    FEATURE_COLUMNS:
+      ENDORSEMENT_THRESHOLD_MIN: 0.2 # proportion; number between 0 and 1, inclusive
+      ENDORSEMENT_THRESHOLD_MAX: 0.8 # proportion; number between 0 and 1, inclusive
+    MULTIPLE_COMPARISONS:
+      ADJUST_P_VALUES: True 
+      METHOD: "fdr_bh" 
+
+  WITHIN_PERSON_CORRELATIONS: 
+    TARGET_COLUMN: "how_would_you_describe_today"
+    MULTIPLE_COMPARISONS:
+      ADJUST_P_VALUES: True 
+      METHOD: "fdr_bh" 
+      LEVEL: "participant" # one of: overall (to apply correction to all tests) or participant (to apply correction to tests from each person separately)

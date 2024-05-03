@@ -1,11 +1,5 @@
 # good-day-quantitative
 
-Data management and analysis code for the manuscript, *"Exploring "Good Days" with Advanced Cancer: A Pilot Daily Diary Study."*
-
-<br>
-
----
-
 ## Installation 
 
 1. Install [miniconda](https://docs.anaconda.com/free/miniconda/miniconda-install/)
@@ -22,7 +16,7 @@ Data management and analysis code for the manuscript, *"Exploring "Good Days" wi
 
     ```bash
     cd good-day-quantitative
-    python env create -f environment.yml good-day
+    conda env create -f environment.yml good-day
     ```
 
 <br>
@@ -61,6 +55,10 @@ Steps of the analysis include:
 4. Creating a table and figure for our publication   
 5. Rendering a summary report   
 
-After running the analysis pipeline, cleaned data will be available in `data/processed/` (a log of the steps performed to clean the daily diary data can be found in `logs/clean_diary_data.log`); analysis results will be available in `output/descriptives/` and `output/results/`; and the table and figure for our publication will be available in `output/tables/` and `output/figures/`, respectively. The rendered summary report can be found in `reports/_site/good_day_quantitative_analysis_summary.html`. You can view our report [here](https://carissalow.github.io/good-day-quantitative).  
+After running the analysis pipeline, cleaned data will be available in `data/processed/` and a log of the steps performed to clean the daily diary data can be found in `logs/clean_diary_data.log`. 
+
+Analysis results will be available in `output/descriptives/` and `output/results/`. The table and figure for our publication will be available in `output/tables/` and `output/figures/`, respectively. 
+
+The rendered summary report can be found in `reports/_site/good_day_quantitative_analysis_summary.html`. You can view our report [here](https://carissalow.github.io/good-day-quantitative).  
 
 <br>

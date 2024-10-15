@@ -265,7 +265,7 @@ Results are displayed in the table below, with each row corresponding to a separ
 (
     GT(format_mixed_model_results(mixed_models, between_person_descriptives))
     .tab_spanner(
-        label="Assciation with daily goodness rating",
+        label="Association with daily goodness rating",
         columns=["Beta", "SE", "95% CI", "p-value", "q-value"]
     )
     .tab_options(

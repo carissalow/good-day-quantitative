@@ -3,6 +3,8 @@ import numpy as np
 import pingouin
 import statsmodels as sm
 import statsmodels.formula.api as smf
+
+from statsmodels.graphics.gofplots import ProbPlot
 from utils import load_config
 
 
@@ -18,9 +20,9 @@ def select_activities_based_on_endorsement(between_person_descriptives, threshol
     """
     selected_activities = (
         between_person_descriptives
-            .pipe(lambda x: x[x["variable"].str.contains("what_did_you_spend_time_doing_today")])
-            .pipe(lambda x: x[x["mean"].astype(float).between(threshold_min, threshold_max)]["variable"])
-            .tolist()
+        .pipe(lambda x: x[x["variable"].str.contains("what_did_you_spend_time_doing_today")])
+        .pipe(lambda x: x[x["mean"].astype(float).between(threshold_min, threshold_max)]["variable"])
+        .tolist()
     )
     return selected_activities
 
@@ -56,8 +58,8 @@ def extract_model_fixed_effects(fitted_model):
     model_summary = fitted_model.summary().tables[1]
     model_fixed_effects = (
         model_summary
-            .reset_index()
-            .rename(columns={"index":"variable", "Coef.":"beta", "Std.Err.":"stderr", "P>|z|":"p_value", "[0.025":"ci_low", "0.975]":"ci_high"})
+        .reset_index()
+        .rename(columns={"index":"variable", "Coef.":"beta", "Std.Err.":"stderr", "P>|z|":"p_value", "[0.025":"ci_low", "0.975]":"ci_high"})
     )
     model_fixed_effects = model_fixed_effects[model_fixed_effects["variable"] != "Group Var"]
     return model_fixed_effects
@@ -81,6 +83,20 @@ def adjust_model_p_values(model_results, p_adjust_method):
     model_results = model_results.merge(predictor_p_values, how="left")
     return model_results
 
+def extract_model_diagnostics(fitted_model, model_formula):
+    """Extract model fitted values and residuals for diagnostic plots"""
+    fitted = fitted_model.fittedvalues
+    resid = fitted_model.resid
+    sample_quanitles = ProbPlot(resid).sample_quantiles
+    theoretical_quantiles = ProbPlot(resid).theoretical_quantiles
+    model_diagnostics = pd.DataFrame({
+        "model_formula":model_formula, 
+        "fitted":fitted,
+        "resid":resid, 
+        "sample_quantiles":sample_quanitles, 
+        "theoretical_quantiles":theoretical_quantiles
+    })
+    return model_diagnostics
 
 def main():
     config = load_config()
@@ -97,17 +113,24 @@ def main():
     selected_activities = select_activities_based_on_endorsement(between_person_descriptives=between_person_descriptives, threshold_min=ENDORSEMENT_THRESHOLD_MIN, threshold_max=ENDORSEMENT_THRESHOLD_MAX)
 
     all_model_results = pd.DataFrame()
+    all_model_diagnostics = pd.DataFrame()
     for activity in selected_activities:
         model_formula = create_univariable_model_formula(target_column=TARGET_COLUMN, predictor_column=activity)
         model_fit = fit_univariable_random_intercept_model(model_formula=model_formula, data=diary_data_clean, group="id")
         model_results = summarize_model_results(fitted_model=model_fit, model_formula=model_formula)
         all_model_results = pd.concat([all_model_results, model_results], axis=0)
 
+        model_diagnostics = extract_model_diagnostics(fitted_model=model_fit, model_formula=model_formula)
+        all_model_diagnostics = pd.concat([all_model_diagnostics, model_diagnostics], axis=0)
+
     if ADJUST_P_VALUES:
         all_model_results = adjust_model_p_values(model_results=all_model_results, p_adjust_method=ADJUST_P_VALUES_METHOD)
 
     all_model_results.reset_index(drop=True, inplace=True)
     all_model_results.to_csv("output/results/univariable_linear_mixed_models.csv", index=False)
+
+    all_model_diagnostics.reset_index(drop=True, inplace=True)
+    all_model_diagnostics.to_csv("output/results/univariable_linear_mixed_models_diagnostics.csv", index=False)
 
 
 if __name__ == "__main__":

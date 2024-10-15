@@ -11,6 +11,7 @@ python src/compute_descriptive_statistics.py
 python src/compute_icc.py
 python src/compute_between_person_correlations.py
 python src/fit_univariable_linear_mixed_models.py
+python src/create_model_diagnostic_plots.py
 python src/compute_within_person_correlations.py
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating figures and tables..."

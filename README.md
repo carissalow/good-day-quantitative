@@ -1,5 +1,13 @@
 # good-day-quantitative
 
+Data management and analysis code for the paper "Exploring 'good days' with advanced cancer: A pilot daily diary study."
+
+[Citation](https://journals.sagepub.com/doi/10.1177/02692163241310683): 
+
+> Lazris D, Fedor J, Cheng S, et al. Exploring “good days” with advanced cancer: A pilot daily diary study. *Palliative Medicine.* 2025;39(2):318-323. doi:10.1177/02692163241310683
+
+<br>
+
 ## Installation 
 
 1. Install [Miniconda](https://docs.anaconda.com/free/miniconda/miniconda-install/)
